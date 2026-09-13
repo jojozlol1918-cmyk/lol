@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VoxelCraft Robust & Optimized</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:'Segoe UI',Arial,sans-serif;color:#fff;}
+  #game{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  #crosshair{
+    position:fixed;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;
+    pointer-events:none;z-index:20;
+  }
+  #crosshair:before,#crosshair:after{content:'';position:absolute;background:rgba(255,255,255,.85);
+    box-shadow:0 0 1px rgba(0,0,0,.8);}
+  #crosshair:before{left:8px;top:0;width:2px;height:18px;}
+  #crosshair:after{top:8px;left:0;width:18px;height:2px;}
+
+  #dimtabs{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:30;}
+  .dimbtn{padding:8px 16px;background:rgba(20,20,25,.7);border:2px solid rgba(255,255,255,.25);
+    color:#eee;font-size:13px;font-weight:600;letter-spacing:.5px;cursor:pointer;border-radius:4px;
+    transition:.15s;user-select:none;}
+  .dimbtn:hover{background:rgba(60,60,70,.85);}
+  .dimbtn.active{border-color:#ffd24a;color:#ffd24a;background:rgba(60,50,10,.8);}
+
+  #topright{position:fixed;top:14px;right:14px;display:flex;flex-direction:column;gap:6px;z-index:30;align-items:flex-end;}
+  #perfbtn,#distbtn{padding:8px 16px;background:rgba(20,20,25,.7);
+    border:2px solid rgba(255,255,255,.25);color:#eee;font-size:13px;font-weight:600;
+    cursor:pointer;border-radius:4px;user-select:none;white-space:nowrap;}
+  #perfbtn:hover,#distbtn:hover{background:rgba(60,60,70,.85);}
+  #perfbtn.active,#distbtn.active{border-color:#ffd24a;color:#ffd24a;background:rgba(60,50,10,.8);}
+
+  #hotbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:30;}
+  .slot{width:52px;height:52px;background:rgba(20,20,25,.75);border:2px solid rgba(255,255,255,.3);
+    border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;}
+  .slot.sel{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.8);}
+  .swatch{width:38px;height:38px;border-radius:2px;border:1px solid rgba(0,0,0,.4);image-rendering:pixelated;background-size:100% 100%;}
+  .slot .num{position:absolute;top:2px;left:4px;font-size:10px;color:#ccc;}
+  .slot .hotname{position:absolute;left:4px;top:3px;right:4px;font-size:8px;color:#aaa;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
+  #equipped{position:fixed;right:18px;bottom:18px;z-index:31;display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(10,10,14,.78);border:1px solid rgba(255,255,255,.28);font-size:12px;color:#eee;pointer-events:none;}
+  #equippedIcon{width:38px;height:38px;image-rendering:pixelated;border:1px solid #555;background-size:100% 100%;}
+  #equippedText{display:flex;flex-direction:column;gap:2px;min-width:90px;}
+  #equippedText b{font-size:12px;}
+  #equippedText span{font-size:10px;color:#aaa;}
+
+  #hud{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);font-size:12px;color:#ddd;
+    text-shadow:0 1px 2px #000;z-index:30;text-align:center;}
+
+  #chunkstat{position:fixed;bottom:10px;left:14px;font-size:11px;color:#999;z-index:30;}
+
+  #overlay{position:fixed;inset:0;background:rgba(5,8,15,.92);z-index:100;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;}
+  #overlay h1{font-size:42px;margin:0 0 6px;letter-spacing:2px;
+    background:linear-gradient(90deg,#7CFC00,#3AAA35,#ffd24a);-webkit-background-clip:text;
+    background-clip:text;color:transparent;}
+  #overlay p{max-width:560px;line-height:1.6;color:#cfcfcf;font-size:14px;}
+  #overlay .key{display:inline-block;background:#2a2a33;border:1px solid #555;border-radius:4px;
+    padding:1px 7px;margin:0 2px;font-family:monospace;color:#fff;}
+  #startbtn{margin-top:18px;padding:14px 34px;font-size:17px;font-weight:700;letter-spacing:1px;
+    background:#3AAA35;border:none;border-radius:6px;color:#fff;cursor:pointer;}
+  #startbtn:hover{background:#4bc945;}
+  #startbtn:disabled{background:#555;cursor:default;opacity:.6;}
+  #loading{margin-top:14px;font-size:13px;color:#999;}
+
+  #pausehint{position:fixed;bottom:10px;right:14px;font-size:11px;color:#999;z-index:30;}
+
+  /* Expanded survival/inventory UI */
+  #inventoryPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:120;
+    width:min(760px,92vw);max-height:82vh;overflow:auto;background:rgba(12,14,20,.97);
+    border:2px solid #777;box-shadow:0 18px 60px #000b;padding:18px;display:none;}
+  #inventoryPanel.open{display:block;}
+  #inventoryPanel h2{margin:0 0 12px;font-size:22px;}
+  #invStats{font-size:12px;color:#aaa;margin-bottom:12px;}
+  #invSearch{width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;background:#0f1116;color:#fff;border:2px solid #444;outline:none;font-size:14px;}
+  #invSearch:focus{border-color:#aaa;}
+  #invGrid{display:grid;grid-template-columns:repeat(9,minmax(48px,1fr));gap:5px;}
+  .invslot{height:58px;background:#1b1d24;border:2px solid #444;position:relative;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;user-select:none;}
+  .invslot:hover{border-color:#bbb;background:#272a33;}
+  .invslot.sel{border-color:#ffd24a;box-shadow:0 0 8px #ffd24a66;}
+  .invslot .invname{position:absolute;left:4px;bottom:3px;font-size:9px;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90%;}
+  .invslot .count{position:absolute;right:4px;bottom:3px;font-weight:700;font-size:12px;text-shadow:0 1px 2px #000;}
+  .itemicon{width:34px;height:34px;background:#777;border:1px solid #111;image-rendering:pixelated;}
+  #invClose{margin-top:14px;padding:9px 18px;background:#333;border:1px solid #666;color:#fff;cursor:pointer;}
+  #toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:130;padding:9px 14px;
+    background:rgba(0,0,0,.78);border:1px solid #777;opacity:0;pointer-events:none;transition:opacity .15s;font-size:13px;}
+  #toast.show{opacity:1;}
+  #pickupFeed{position:fixed;right:16px;top:90px;z-index:80;display:flex;flex-direction:column;gap:5px;pointer-events:none;}
+  .pickup{background:rgba(0,0,0,.68);padding:5px 9px;border-left:3px solid #ffd24a;font-size:12px;animation:pickupfade 2.2s forwards;}
+  @keyframes pickupfade{0%{opacity:0;transform:translateX(20px)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateX(20px)}}
+  #xpbar{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);width:260px;height:7px;background:#111;border:1px solid #555;z-index:31;}
+  #xpfill{height:100%;width:0%;background:#73d13d;transition:width .12s;}
+
+  #craftingPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;width:min(560px,90vw);max-height:75vh;overflow:auto;background:#17191f;border:3px solid #777;box-shadow:0 20px 70px #000;display:none;padding:16px;}
+  #craftingPanel.open{display:block;}
+  .craftHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .craftHead h2{margin:0;}
+  #craftClose{background:#333;color:#fff;border:1px solid #666;font-size:22px;width:34px;height:34px;cursor:pointer;}
+  #recipeGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .recipe{display:flex;align-items:center;gap:10px;min-height:54px;background:#242731;border:2px solid #4a4e58;color:#fff;padding:7px;cursor:pointer;text-align:left;}
+  .recipe:disabled{opacity:.35;cursor:not-allowed;}
+  .recipeIcon{width:40px;height:40px;display:block;image-rendering:pixelated;flex:none;}
+
+  #deviceSelect{display:flex;gap:12px;margin-top:8px;}
+  .deviceBtn{padding:13px 28px;background:#242731;color:#fff;border:2px solid #555;cursor:pointer;font-size:16px;font-weight:700;}
+  .deviceBtn.selected{border-color:#7CFC00;background:#303a2d;}
+  #mobileControls{display:none;position:fixed;inset:0;z-index:60;pointer-events:none;touch-action:none;}
+  #mobileControls.active{display:block;}
+  #joystick{position:absolute;left:24px;bottom:28px;width:118px;height:118px;border:2px solid #ffffff55;background:#0005;border-radius:50%;pointer-events:auto;touch-action:none;}
+  #stick{position:absolute;left:39px;top:39px;width:40px;height:40px;border-radius:50%;background:#ffffff88;border:2px solid #fff;}
+  .mBtn{position:absolute;pointer-events:auto;touch-action:none;border:2px solid #ffffff66;background:#0008;color:#fff;font-weight:800;font-size:14px;border-radius:10px;min-width:58px;min-height:50px;}
+  #mJump{right:28px;bottom:132px;} #mBreak{right:100px;bottom:70px;} #mPlace{right:28px;bottom:70px;}
+  #mInv{right:28px;top:28px;min-width:52px;min-height:44px;}
+  #mFly{right:96px;top:28px;min-width:52px;min-height:44px;}
+  #mSprint{left:155px;bottom:38px;min-width:62px;min-height:42px;}
+  @media(max-width:700px){#overlay h1{font-size:34px}.deviceBtn{padding:12px 20px}.deviceBtn{font-size:14px}.deviceBtn{min-width:120px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="craftingPanel">
+  <div class="craftHead"><h2 id="craftTitle">Crafting Table</h2><button id="craftClose">×</button></div>
+  <div id="recipeGrid"></div>
+</div>
+<div id="crosshair"></div>
+
+<div id="dimtabs">
+  <div class="dimbtn active" data-dim="overworld">Overworld</div>
+  <div class="dimbtn" data-dim="nether">The Nether</div>
+  <div class="dimbtn" data-dim="end">The End</div>
+</div>
+
+<div id="topright">
+  <div id="distbtn">Render Distance: Normal</div>
+  <div id="perfbtn">Performance: Off</div>
+</div>
+<div id="hotbar"></div>
+<div id="equipped"><div id="equippedIcon"></div><div id="equippedText"><b id="equippedName">Grass</b><span id="equippedCount">0</span></div></div>
+<div id="hud">WASD move &middot; Space jump &middot; F fly &middot; Left-click break &middot; Right-click place &middot; 1-9 equip &middot; I inventory</div>
+<div id="chunkstat"></div>
+<div id="pausehint" style="display:none;">Click the game to resume</div>
+<div id="xpbar"><div id="xpfill"></div></div>
+<div id="toast"></div>
+<div id="pickupFeed"></div>
+
+<div id="mobileControls">
+  <div id="joystick"><div id="stick"></div></div>
+  <button class="mBtn" id="mJump">JUMP</button>
+  <button class="mBtn" id="mBreak">BREAK</button>
+  <button class="mBtn" id="mPlace">PLACE</button>
+  <button class="mBtn" id="mInv">INV</button>
+  <button class="mBtn" id="mFly">FLY</button>
+  <button class="mBtn" id="mSprint">SPRINT</button>
+</div>
+<div id="inventoryPanel">
+  <h2>Inventory</h2>
+  <div id="invStats"></div>
+  <input id="invSearch" type="search" placeholder="Search items..." autocomplete="off" spellcheck="false">
+  <div id="invGrid"></div>
+  <div style="display:flex;gap:8px;margin-top:12px"><button id="invCraft" style="padding:9px 14px;background:#30343d;color:#fff;border:1px solid #666;cursor:pointer">Crafting</button><button id="invClose">Close (I)</button></div>
+</div>
+
+
+<div id="overlay">
+  <h1>VOXELCRAFT</h1>
+  <p>
+    An endless voxel world that streams terrain in around you as you explore, with adjustable render distance and a Performance Mode toggle.<br><br>
+    <span class="key">WASD</span> move &nbsp; <span class="key">Space</span> jump &nbsp;
+    <span class="key">Shift</span> sprint &nbsp; <span class="key">F</span> toggle flight &nbsp;
+    <span class="key">1-9</span> select block<br>
+    <span class="key">Left Click</span> break &nbsp; <span class="key">Right Click</span> place &nbsp;
+    <span class="key">E</span> break &nbsp; <span class="key">Q</span> place &nbsp;
+    <span class="key">I</span> inventory &nbsp; <span class="key">Esc</span> release mouse<br>
+  </p>
+  <div id="deviceQuestion"><b>Are you on computer or mobile?</b></div>
+  <div id="deviceSelect">
+    <button class="deviceBtn" id="computerBtn">🖥️ Computer</button>
+    <button class="deviceBtn" id="mobileBtn">📱 Mobile</button>
+  </div>
+  <button id="startbtn" disabled>Choose a device</button>
+  <div id="loading"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+const ATLAS_DATA_URI = 'data:image/png;base64,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';
+
+const AIR=0, GRASS=1, DIRT=2, STONE=3, SAND=4, SNOW=5, WATER=6, WOOD=7, LEAVES=8,
+      BEDROCK=9, NETHERRACK=10, LAVA=11, GLOWSTONE=12, OBSIDIAN=13, ENDSTONE=14;
+
+const BLOCK_NAMES = {
+  1:'Grass',2:'Dirt',3:'Stone',4:'Sand',5:'Snow',7:'Wood',8:'Leaves',
+  12:'Glowstone',13:'Obsidian',14:'Endstone',10:'Netherrack'
+};
+let HOTBAR_BLOCKS = [];
+const HOTBAR_MAX = 9;
+
+// ===================================================================
+// Expanded item / inventory system. Block textures can be replaced later.
+// Every existing block remains compatible; extra items are placeholders
+// for future crafting/loot and use the fallback icon until textured.
+// ===================================================================
+const ITEM_DEFS = [
+  [GRASS,'Grass',true],[DIRT,'Dirt',true],[STONE,'Stone',true],[SAND,'Sand',true],
+  [SNOW,'Snow',true],[WATER,'Water',true],[WOOD,'Oak Log',true],[LEAVES,'Leaves',true],
+  [BEDROCK,'Bedrock',true],[NETHERRACK,'Netherrack',true],[LAVA,'Lava',true],
+  [GLOWSTONE,'Glowstone',true],[OBSIDIAN,'Obsidian',true],[ENDSTONE,'End Stone',true],
+  [101,'Cobblestone',true],[102,'Gravel',true],[103,'Clay',true],[104,'Coal',false],
+  [105,'Iron Ore',false],[106,'Gold Ore',false],[107,'Diamond Ore',false],[108,'Emerald Ore',false],
+  [109,'Redstone',false],[110,'Quartz',false],[111,'Copper Ore',false],
+  [112,'Oak Sapling',false],[113,'Stick',false],[114,'Flint',false],[115,'String',false],
+  [116,'Feather',false],[117,'Leather',false],[118,'Bone',false],[119,'Spider Eye',false],
+  [120,'Gunpowder',false],[121,'Apple',false],[122,'Bread',false],[123,'Wheat',false],
+  [124,'Wheat Seeds',false],[125,'Carrot',false],[126,'Potato',false],[127,'Beef',false],
+  [128,'Cooked Beef',false],[129,'Chicken',false],[130,'Cooked Chicken',false],[131,'Porkchop',false],
+  [132,'Cooked Porkchop',false],[133,'Egg',false],[134,'Milk Bucket',false],[135,'Water Bucket',false],
+  [136,'Lava Bucket',false],[137,'Bucket',false],[138,'Torch',false],[139,'Chest',false],
+  [140,'Crafting Table',false],[141,'Furnace',false],[142,'Glass',false],[143,'Brick',false],
+  [144,'Iron Ingot',false],[145,'Gold Ingot',false],[146,'Diamond',false],[147,'Emerald',false],
+  [148,'Stick Bundle',false],[149,'Paper',false],[150,'Book',false],[151,'Clock',false],
+  [152,'Compass',false],[153,'Arrow',false],[154,'Bow',false],[155,'Iron Sword',false],
+  [156,'Diamond Sword',false],[157,'Iron Pickaxe',false],[158,'Diamond Pickaxe',false]
+];
+const ITEM_NAME = Object.fromEntries(ITEM_DEFS.map(x=>[x[0],x[1]]));
+const ITEM_PLACEABLE = new Set(ITEM_DEFS.filter(x=>x[2]).map(x=>x[0]));
+const ITEM_COLORS = {
+  1:'#62b542',2:'#805638',3:'#999',4:'#d9c58b',5:'#f5f8ff',6:'#3478d0',7:'#704827',8:'#3f7d32',
+  9:'#222',10:'#752c24',11:'#f04b25',12:'#f2d34e',13:'#30203b',14:'#d5d0a2'
+};
+const inventory = {};
+for(const [id] of ITEM_DEFS) inventory[id]=0;
+// Start with a practical building kit; mined blocks accumulate normally.
+// Start empty. You earn blocks/items by mining or crafting them.
+let xp=0, blocksMined=0, inventoryOpen=false;
+function saveInventory(){
+  try{ localStorage.setItem('voxelcraft_inventory_v2', JSON.stringify(inventory)); localStorage.setItem('voxelcraft_xp',String(xp)); }
+  catch(e){}
+}
+function loadInventory(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('voxelcraft_inventory_v2')||'null');
+    if(raw) for(const k of Object.keys(raw)) if(inventory[k]!==undefined) inventory[k]=Math.max(0,raw[k]|0);
+    xp=Number(localStorage.getItem('voxelcraft_xp')||0)||0;
+  }catch(e){}
+}
+const ITEM_PALETTES = {
+  grass:['#6dbb3d','#3f7f28','#7d5b35'], dirt:['#8b5a35','#6f4328','#a56b42'], stone:['#9b9b9b','#707070','#c1c1c1'],
+  sand:['#e5cf88','#c6ad64','#f5e4aa'], snow:['#ffffff','#c9e5f4','#8eb5c8'], water:['#3c8bd9','#245e9c','#6bb7ff'],
+  wood:['#8d5b32','#5f381e','#b67a43'], leaves:['#3e8e35','#286425','#69b84e'], bedrock:['#383838','#171717','#686868'],
+  netherrack:['#8b302d','#5c1f24','#b14b42'], lava:['#ff5a00','#c92500','#ffd43b'], glowstone:['#fff06a','#c89d28','#fff7b2'],
+  obsidian:['#30234f','#171226','#55447d'], endstone:['#d9d7a2','#aaa86f','#f1efc4'],
+  coal:['#262626','#111111','#555555'], iron:['#c7c9c9','#85898a','#eceeee'], gold:['#f2c84b','#b98316','#fff08a'],
+  diamond:['#46e1e8','#1d8fa0','#a6ffff'], emerald:['#35d37d','#16824a','#9bffd0'], redstone:['#d62d2d','#791717','#ff6666'],
+  quartz:['#eee9df','#bdb6aa','#ffffff'], copper:['#c8754c','#7e4028','#f0a27a'],
+  stick:['#b77a45','#734722','#dfaa68'], string:['#eeeeee','#999999','#ffffff'], feather:['#f8f8f8','#c6d0d8','#ffffff'],
+  leather:['#9b633c','#633c25','#c58a58'], bone:['#e8dfc7','#aaa18c','#fff8e6'], gunpowder:['#4d4d4d','#202020','#777777'],
+  apple:['#e63939','#8c1717','#69a83b'], bread:['#d99b45','#9b6125','#f4cc79'], wheat:['#e4c34d','#a47c20','#fff08a'],
+  carrot:['#ed7a27','#9a3d13','#4ea43b'], potato:['#b58a54','#76552e','#dfbb78'], beef:['#a43c3c','#672020','#d96767'],
+  chicken:['#d8c2a3','#8e7559','#f2e2c9'], egg:['#fff7df','#d9d0bb','#ffffff'], bucket:['#aeb6bd','#68727b','#e8edf0'],
+  torch:['#f6a52a','#8d4316','#fff06b'], chest:['#a96a28','#5c3215','#d89a42'], crafting:['#a96d3b','#69401f','#d49a58'],
+  furnace:['#777777','#3e3e3e','#aaa'], glass:['#9bdcff','#4f9ac7','#d9f6ff'], brick:['#b94d3d','#6d2a22','#dc7660'],
+  ingot:['#d4d6d8','#85898d','#f8fafb'], paper:['#f7f3df','#c9c3ad','#ffffff'], book:['#7f3f31','#4e2019','#d2a06d'],
+  clock:['#e6bf4b','#8b6a20','#ffffff'], compass:['#d9d9d9','#555','#e54a4a'], arrow:['#d8c1a1','#78583c','#eee'],
+  bow:['#8b5a2b','#4c2b13','#c68a45'], sword:['#bfc8ce','#65727a','#eef4f7'], pickaxe:['#7b4a27','#bfc8ce','#e8f4f7'],
+  sapling:['#6e9e45','#3c6e2c','#a7cf67'], flint:['#4f4f4f','#222','#858585'], seeds:['#8a6b2e','#d5b84c','#5d7f25']
+};
+function itemKey(name){
+  const n=(name||'item').toLowerCase();
+  if(n.includes('grass'))return'grass'; if(n.includes('dirt'))return'dirt'; if(n.includes('stone'))return'stone';
+  if(n.includes('sand'))return'sand'; if(n.includes('snow'))return'snow'; if(n.includes('water'))return'water';
+  if(n.includes('log'))return'wood'; if(n.includes('leaves'))return'leaves'; if(n.includes('bedrock'))return'bedrock';
+  if(n.includes('netherrack'))return'netherrack'; if(n.includes('lava'))return'lava'; if(n.includes('glowstone'))return'glowstone';
+  if(n.includes('obsidian'))return'obsidian'; if(n.includes('end stone'))return'endstone'; if(n.includes('coal'))return'coal';
+  if(n.includes('iron'))return n.includes('ore')?'iron':'ingot'; if(n.includes('gold'))return n.includes('ore')?'gold':'ingot';
+  if(n.includes('diamond'))return'diamond'; if(n.includes('emerald'))return'emerald'; if(n.includes('redstone'))return'redstone';
+  if(n.includes('quartz'))return'quartz'; if(n.includes('copper'))return'copper'; if(n.includes('stick'))return'stick';
+  if(n.includes('string'))return'string'; if(n.includes('feather'))return'feather'; if(n.includes('leather'))return'leather';
+  if(n.includes('bone'))return'bone'; if(n.includes('gunpowder'))return'gunpowder'; if(n.includes('apple'))return'apple';
+  if(n.includes('bread'))return'bread'; if(n.includes('wheat'))return n.includes('seed')?'seeds':'wheat'; if(n.includes('carrot'))return'carrot';
+  if(n.includes('potato'))return'potato'; if(n.includes('beef')||n.includes('pork'))return'beef'; if(n.includes('chicken'))return'chicken';
+  if(n.includes('egg'))return'egg'; if(n.includes('bucket'))return'bucket'; if(n.includes('torch'))return'torch';
+  if(n.includes('chest'))return'chest'; if(n.includes('crafting'))return'crafting'; if(n.includes('furnace'))return'furnace';
+  if(n.includes('glass'))return'glass'; if(n.includes('brick'))return'brick'; if(n.includes('paper'))return'paper';
+  if(n.includes('book'))return'book'; if(n.includes('clock'))return'clock'; if(n.includes('compass'))return'compass';
+  if(n.includes('arrow'))return'arrow'; if(n.includes('bow'))return'bow'; if(n.includes('sword'))return'sword'; if(n.includes('pickaxe'))return'pickaxe';
+  if(n.includes('sapling'))return'sapling'; if(n.includes('flint'))return'flint'; return'iron';
+}
+const ITEM_TEXTURE_CACHE={};
+function makeItemTexture(id){
+  if(ITEM_TEXTURE_CACHE[id]) return ITEM_TEXTURE_CACHE[id];
+  const name=ITEM_NAME[id]||('Item '+id), key=itemKey(name), pal=ITEM_PALETTES[key]||['#777','#444','#aaa'];
+  const c=document.createElement('canvas'); c.width=32;c.height=32; const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+  x.fillStyle='rgba(0,0,0,0)'; x.clearRect(0,0,32,32);
+  // Pixel-art base silhouette
+  x.fillStyle=pal[1]; x.fillRect(6,6,20,20);
+  x.fillStyle=pal[0]; x.fillRect(8,5,16,21);
+  x.fillStyle=pal[2]; x.fillRect(10,7,5,5);
+  // Material-specific silhouette tweaks
+  if(key==='stick'||key==='arrow'||key==='bone'||key==='feather'||key==='string'){
+    x.clearRect(0,0,32,32); x.strokeStyle=pal[0]; x.lineWidth=3; x.beginPath();
+    if(key==='arrow'){x.moveTo(5,26);x.lineTo(24,7);x.moveTo(18,7);x.lineTo(25,7);x.lineTo(25,14);} else if(key==='feather'){x.moveTo(9,25);x.quadraticCurveTo(26,20,20,6);x.quadraticCurveTo(11,11,9,25);} else {x.moveTo(7,25);x.lineTo(25,7);} x.stroke();
+  } else if(key==='sword'){
+    x.clearRect(0,0,32,32); x.fillStyle=pal[1]; x.fillRect(20,5,4,18); x.fillStyle=pal[2]; x.fillRect(16,9,4,10); x.fillStyle=pal[0]; x.fillRect(8,20,14,4); x.fillRect(13,24,5,4);
+  } else if(key==='pickaxe'){
+    x.clearRect(0,0,32,32); x.strokeStyle=pal[1]; x.lineWidth=4; x.beginPath();x.moveTo(8,27);x.lineTo(23,7);x.stroke();x.strokeStyle=pal[2];x.lineWidth=5;x.beginPath();x.moveTo(7,10);x.quadraticCurveTo(17,3,27,10);x.stroke();
+  } else if(key==='bow'){
+    x.clearRect(0,0,32,32);x.strokeStyle=pal[0];x.lineWidth=3;x.beginPath();x.arc(13,16,10,-1.15,1.15);x.stroke();x.strokeStyle=pal[2];x.lineWidth=1;x.beginPath();x.moveTo(6,7);x.lineTo(6,25);x.stroke();
+  } else if(key==='bucket'){
+    x.clearRect(0,0,32,32);x.fillStyle=pal[0];x.beginPath();x.moveTo(7,10);x.lineTo(25,10);x.lineTo(22,26);x.lineTo(10,26);x.closePath();x.fill();x.strokeStyle=pal[2];x.lineWidth=2;x.stroke();
+  } else if(key==='torch'){
+    x.clearRect(0,0,32,32);x.fillStyle='#8b4a20';x.fillRect(14,14,5,13);x.fillStyle=pal[2];x.fillRect(12,7,9,8);x.fillStyle=pal[0];x.fillRect(14,5,5,4);
+  } else if(key==='compass'||key==='clock'){
+    x.clearRect(0,0,32,32);x.fillStyle=pal[1];x.beginPath();x.arc(16,16,11,0,Math.PI*2);x.fill();x.fillStyle=pal[2];x.beginPath();x.arc(16,16,8,0,Math.PI*2);x.fill();x.fillStyle=key==='compass'?'#d33':'#333';x.fillRect(15,9,2,8);x.fillRect(15,16,7,2);
+  }
+  // Tiny pixel noise gives every item a textured, non-flat look.
+  for(let i=0;i<18;i++){ const px=(i*13+id*7)%28+2, py=(i*17+id*3)%28+2; x.fillStyle=i%2?pal[1]:pal[2]; x.fillRect(px,py,1+(i%2),1+(i%2)); }
+  const url=c.toDataURL('image/png'); ITEM_TEXTURE_CACHE[id]=url; return url;
+}
+function itemIcon(id){
+  const el=document.createElement('div'); el.className='itemicon';
+  el.style.background='url('+makeItemTexture(id)+') center/100% 100% no-repeat';
+  el.title=ITEM_NAME[id]||'Item '+id; return el;
+}
+
+function showToast(text){
+  const el=document.getElementById('toast'); el.textContent=text; el.classList.add('show');
+  clearTimeout(showToast.t); showToast.t=setTimeout(()=>el.classList.remove('show'),1200);
+}
+function addItem(id,amount=1){
+  if(inventory[id]===undefined) inventory[id]=0;
+  inventory[id]+=amount;
+  const feed=document.getElementById('pickupFeed');
+  const row=document.createElement('div'); row.className='pickup';
+  row.textContent='+'+amount+' '+(ITEM_NAME[id]||'Item');
+  feed.appendChild(row); setTimeout(()=>row.remove(),2300);
+  updateInventoryUI(); saveInventory();
+}
+function removeItem(id,amount=1){
+  if((inventory[id]||0)<amount) return false;
+  inventory[id]-=amount; updateInventoryUI(); saveInventory(); return true;
+}
+function addXP(amount){
+  xp+=amount;
+  const pct=(xp%100);
+  document.getElementById('xpfill').style.width=pct+'%';
+}
+function openInventory(){
+  closeCrafting(); inventoryOpen=true; document.getElementById('inventoryPanel').classList.add('open');
+  updateInventoryUI();
+  if(pointerLocked) try{document.exitPointerLock();}catch(e){}
+}
+function closeInventory(){
+  inventoryOpen=false; document.getElementById('inventoryPanel').classList.remove('open');
+}
+function updateInventoryUI(){
+  const grid=document.getElementById('invGrid'); if(!grid) return;
+  grid.innerHTML='';
+  const search=(document.getElementById('invSearch')?.value||'').trim().toLowerCase();
+  const ids=ITEM_DEFS.map(x=>x[0]).filter(id=>{
+    if(!search) return true;
+    const name=(ITEM_NAME[id]||'Item').toLowerCase();
+    return name.includes(search);
+  });
+  ids.forEach(id=>{
+    const slot=document.createElement('div'); slot.className='invslot';
+    if(id===selectedBlock) slot.classList.add('sel');
+    slot.appendChild(itemIcon(id));
+    const name=document.createElement('div'); name.className='invname'; name.textContent=ITEM_NAME[id];
+    const count=document.createElement('div'); count.className='count'; count.textContent=inventory[id]||0;
+    slot.append(name,count);
+    slot.addEventListener('click',()=>{
+      if(ITEM_PLACEABLE.has(id) && (inventory[id]||0)>0){
+        selectedBlock=id; refreshHotbar(); updateHotbarUI(); updateInventoryUI(); updateEquippedUI(); closeInventory();
+        showToast('Selected '+ITEM_NAME[id]);
+      }
+    });
+    grid.appendChild(slot);
+  });
+  document.getElementById('invStats').textContent=
+    'Blocks mined: '+blocksMined+'  •  XP: '+xp+'  •  '+ITEM_DEFS.length+' item types'+(search?'  •  '+ids.length+' matches':'');
+}
+const invSearch=document.getElementById('invSearch');
+if(invSearch) invSearch.addEventListener('input',updateInventoryUI);
+
+
+const CHUNK_SIZE = 16;
+const WORLD_HEIGHT = 64;
+const SEA_LEVEL = 24;
+const BOUNDED_SIZE = 64; // fixed-size dimensions (Nether / End)
+
+function isSolidCollide(b){ return b!==0 && b!==6; }
+function getSafe(grid,x,y,z,size,height){ return (x>=0&&x<size&&y>=0&&y<height&&z>=0&&z<size) ? grid[x + z*size + y*size*size] : 0; }
+function setSafe(grid,x,y,z,v,size,height){ if(x>=0&&x<size&&y>=0&&y<height&&z>=0&&z<size) grid[x + z*size + y*size*size] = v; }
+
+// --- Noise Generators ---
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a>>>15, 1 | a);
+    t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+function makePerlin(seed){
+  const p = new Uint8Array(256);
+  for(let i=0;i<256;i++) p[i]=i;
+  const rand = mulberry32(seed);
+  for(let i=255;i>0;i--){
+    const j = Math.floor(rand()*(i+1));
+    const tmp=p[i]; p[i]=p[j]; p[j]=tmp;
+  }
+  const perm = new Uint8Array(512);
+  for(let i=0;i<512;i++) perm[i]=p[i&255];
+  function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+  function lerp(a,b,t){ return a+t*(b-a); }
+  function grad(hash,x,y){
+    const h = hash & 7;
+    const u = h<4?x:y, v = h<4?y:x;
+    return ((h&1)?-u:u) + ((h&2)?-2*v:2*v);
+  }
+  return function noise2(x,y){
+    const X = Math.floor(x)&255, Y = Math.floor(y)&255;
+    x -= Math.floor(x); y -= Math.floor(y);
+    const u=fade(x), v=fade(y);
+    const aa=perm[X+perm[Y]], ab=perm[X+perm[Y+1]], ba=perm[X+1+perm[Y]], bb=perm[X+1+perm[Y+1]];
+    return lerp(
+      lerp(grad(aa,x,y), grad(ba,x-1,y), u),
+      lerp(grad(ab,x,y-1), grad(bb,x-1,y-1), u), v);
+  };
+}
+const noise2 = makePerlin(1337);
+function hash2(x,z){
+  const s = Math.sin(x*127.1 + z*311.7)*43758.5453;
+  return s - Math.floor(s);
+}
+
+// --- Bulletproof Texture System (Atlas + Procedural Fallback) ---
+const ATLAS_COLS = 4, ATLAS_ROWS = 4;
+const TILES = {
+  grass_top:[0,0], grass_side:[1,0], dirt:[2,0], stone:[3,0],
+  sand:[0,1], snow:[1,1], water:[2,1], wood_side:[3,1],
+  wood_top:[0,2], leaves:[1,2], bedrock:[2,2], netherrack:[3,2],
+  lava:[0,3], glowstone:[1,3], obsidian:[2,3], endstone:[3,3]
+};
+
+function createProceduralAtlas(){
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const tileSize = 64;
+  const colors = ['#5fae3d','#7a5230','#8a8a8a','#dccb8a','#f4f8ff','#2b64bf','#6b4a2b','#3d7a2b','#222','#6b2020','#ff4400','#ffd700','#331144','#d9d6a3'];
+  let i = 0;
+  for(let r=0; r<ATLAS_ROWS; r++){
+    for(let c=0; c<ATLAS_COLS; c++){
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fillRect(c*tileSize, r*tileSize, tileSize, tileSize);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      for(let p=0; p<10; p++){
+        ctx.fillRect(c*tileSize + (p*7)%tileSize, r*tileSize + (p*13)%tileSize, 8, 8);
+      }
+      i++;
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  return tex;
+}
+
+function loadAtlas(onReady){
+  const loader = new THREE.TextureLoader();
+  loader.load(ATLAS_DATA_URI,
+    (tex)=>{
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
+      onReady(tex);
+    },
+    undefined,
+    ()=>{ onReady(createProceduralAtlas()); }
+  );
+}
+
+function tileUV(name){
+  const [col,row] = TILES[name] || [0,0];
+  const u0 = col/ATLAS_COLS, u1=(col+1)/ATLAS_COLS;
+  const v1 = 1 - row/ATLAS_ROWS, v0 = 1 - (row+1)/ATLAS_ROWS;
+  return {u0,u1,v0,v1};
+}
+function tileFor(block, faceName){
+  switch(block){
+    case GRASS: return faceName==='top' ? 'grass_top' : faceName==='bottom' ? 'dirt' : 'grass_side';
+    case DIRT: return 'dirt';
+    case STONE: return 'stone';
+    case SAND: return 'sand';
+    case SNOW: return 'snow';
+    case WATER: return 'water';
+    case WOOD: return (faceName==='top'||faceName==='bottom') ? 'wood_top' : 'wood_side';
+    case LEAVES: return 'leaves';
+    case BEDROCK: return 'bedrock';
+    case NETHERRACK: return 'netherrack';
+    case LAVA: return 'lava';
+    case GLOWSTONE: return 'glowstone';
+    case OBSIDIAN: return 'obsidian';
+    case ENDSTONE: return 'endstone';
+    case 101: return 'stone';
+    case 102: return 'stone';
+    case 103: return 'sand';
+    case 139: return 'wood_side';
+    case 140: return faceName==='top' ? 'wood_top' : 'wood_side';
+    case 141: return 'stone';
+    case 142: return 'water';
+    case 143: return 'brick';
+    default: return 'stone';
+  }
+}
+
+// --- Biome / Terrain Shaping (tuned for lots of grass & sand) ---
+function biomeAt(wx,wz){
+  const t = noise2(wx*0.02+1000, wz*0.02+1000);
+  const h = noise2(wx*0.02+2000, wz*0.02+2000);
+  let biome = 'plains';
+  if(t < -0.45) biome = 'snow';
+  else if(t > 0.10 && h < 0.10) biome = 'desert';
+  else if(h > 0.48) biome = 'forest';
+  return biome;
+}
+function surfaceHeightAt(wx,wz,biome){
+  const n = noise2(wx*0.05,wz*0.05)*0.5 + noise2(wx*0.1,wz*0.1)*0.3 + noise2(wx*0.22,wz*0.22)*0.2;
+  const amp = biome==='desert' ? 3 : biome==='snow' ? 5 : 6;
+  let surface = SEA_LEVEL + Math.round(n*amp) + (biome==='snow' ? 3 : 0);
+  surface = Math.max(3, Math.min(WORLD_HEIGHT-8, surface));
+  return surface;
+}
+
+// --- Meshing System ---
+const FACES = [
+  { name:'px', dir:[1,0,0], normal:[1,0,0], faceOf:'side', verts:[[1,0,0],[1,0,1],[1,1,1],[1,1,0]] },
+  { name:'nx', dir:[-1,0,0], normal:[-1,0,0], faceOf:'side', verts:[[0,0,1],[0,0,0],[0,1,0],[0,1,1]] },
+  { name:'py', dir:[0,1,0], normal:[0,1,0], faceOf:'top', verts:[[0,1,0],[1,1,0],[1,1,1],[0,1,1]] },
+  { name:'ny', dir:[0,-1,0], normal:[0,-1,0], faceOf:'bottom', verts:[[0,0,1],[1,0,1],[1,0,0],[0,0,0]] },
+  { name:'pz', dir:[0,0,1], normal:[0,0,1], faceOf:'side', verts:[[1,0,1],[0,0,1],[0,1,1],[1,1,1]] },
+  { name:'nz', dir:[0,0,-1], normal:[0,0,-1], faceOf:'side', verts:[[0,0,0],[1,0,0],[1,1,0],[0,1,0]] },
+];
+
+function faceVisible(current, neighbor){
+  if(current === WATER) return neighbor === 0;
+  return neighbor === 0 || neighbor === WATER;
+}
+
+function addFace(arrP, arrN, arrU, x,y,z, face, tileName){
+  const uv = tileUV(tileName);
+  const uvs = [[uv.u0,uv.v0],[uv.u1,uv.v0],[uv.u1,uv.v1],[uv.u0,uv.v1]];
+  const order = [0,1,2, 0,2,3];
+  for(const i of order){
+    const v = face.verts[i];
+    arrP.push(x+v[0], y+v[1], z+v[2]);
+    arrN.push(face.normal[0], face.normal[1], face.normal[2]);
+    arrU.push(uvs[i][0], uvs[i][1]);
+  }
+}
+
+function meshFromArrays(pos,norm,uv,material){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norm,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  return new THREE.Mesh(geo, material);
+}
+
+// --- Engine Setup ---
+const container = document.getElementById('game');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.05, 2000);
+const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'low-power' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+container.appendChild(renderer.domElement);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x445566, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(40,60,20);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+scene.fog = new THREE.Fog(0x9fd3f0, 40, 260);
+scene.background = new THREE.Color(0x87ceeb);
+
+const opaqueMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+const waterMat = new THREE.MeshLambertMaterial({ color: 0x2b64bf, transparent:true, opacity:0.7, side: THREE.DoubleSide, depthWrite:false });
+
+const highlightMesh = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.005,1.005,1.005)),
+  new THREE.LineBasicMaterial({color:0x000000})
+);
+scene.add(highlightMesh);
+highlightMesh.visible = false;
+
+// ===================================================================
+// Overworld: infinite chunk-streaming world
+// ===================================================================
+function chunkKey(cx,cz){ return cx+','+cz; }
+function chunkIdx(lx,ly,lz){ return lx + lz*CHUNK_SIZE + ly*CHUNK_SIZE*CHUNK_SIZE; }
+
+function placeTreeInChunk(data, lx, ly0, lz){
+  const height = 4;
+  const setForce=(x,y,z,v)=>{ if(x<0||x>=CHUNK_SIZE||z<0||z>=CHUNK_SIZE||y<0||y>=WORLD_HEIGHT) return; data[chunkIdx(x,y,z)]=v; };
+  const setIfAir=(x,y,z,v)=>{ if(x<0||x>=CHUNK_SIZE||z<0||z>=CHUNK_SIZE||y<0||y>=WORLD_HEIGHT) return; const i=chunkIdx(x,y,z); if(data[i]===0) data[i]=v; };
+  for(let dy=0; dy<height; dy++) setForce(lx, ly0+dy, lz, WOOD);
+  for(let dx=-2;dx<=2;dx++)
+  for(let dz=-2;dz<=2;dz++)
+  for(let dy=height-2;dy<=height+1;dy++){
+    if(Math.abs(dx)+Math.abs(dz)+Math.abs(dy-height)<=3){
+      setIfAir(lx+dx, ly0+dy, lz+dz, LEAVES);
+    }
+  }
+}
+
+function generateChunkData(cx,cz){
+  const data = new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*WORLD_HEIGHT);
+  for(let lx=0; lx<CHUNK_SIZE; lx++){
+    for(let lz=0; lz<CHUNK_SIZE; lz++){
+      const wx = cx*CHUNK_SIZE+lx, wz = cz*CHUNK_SIZE+lz;
+      const biome = biomeAt(wx,wz);
+      const surface = surfaceHeightAt(wx,wz,biome);
+      for(let y=0;y<WORLD_HEIGHT;y++){
+        let block = AIR;
+        if(y===0) block = BEDROCK;
+        else if(y < surface-3) block = STONE;
+        else if(y < surface) block = (biome==='desert') ? SAND : DIRT;
+        else if(y === surface){
+          if(surface < SEA_LEVEL) block = SAND;
+          else if(biome==='desert') block = SAND;
+          else if(biome==='snow') block = SNOW;
+          else block = GRASS;
+        } else if(y > surface && y <= SEA_LEVEL){
+          block = WATER;
+        }
+        data[chunkIdx(lx,y,lz)] = block;
+      }
+      if(surface >= SEA_LEVEL && (biome==='forest' || biome==='plains')){
+        const chance = biome==='forest' ? 0.045 : 0.01;
+        if(hash2(wx,wz) < chance) placeTreeInChunk(data, lx, surface+1, lz);
+      }
+    }
+  }
+  return data;
+}
+
+const chunks = new Map();
+function getChunk(cx,cz){ return chunks.get(chunkKey(cx,cz)); }
+
+function ensureChunk(cx,cz){
+  const key = chunkKey(cx,cz);
+  let c = chunks.get(key);
+  if(!c){
+    c = { cx, cz, data: generateChunkData(cx,cz), group: new THREE.Group() };
+    c.group.position.set(cx*CHUNK_SIZE, 0, cz*CHUNK_SIZE);
+    scene.add(c.group);
+    chunks.set(key, c);
+  }
+  return c;
+}
+
+function disposeChunk(cx,cz){
+  const key = chunkKey(cx,cz);
+  const c = chunks.get(key);
+  if(!c) return;
+  while(c.group.children.length){
+    const m = c.group.children[0];
+    c.group.remove(m);
+    m.geometry.dispose();
+  }
+  scene.remove(c.group);
+  chunks.delete(key);
+}
+
+function overworldGetBlock(wx,wy,wz){
+  if(wy<0||wy>=WORLD_HEIGHT) return 0;
+  const cx = Math.floor(wx/CHUNK_SIZE), cz = Math.floor(wz/CHUNK_SIZE);
+  const c = getChunk(cx,cz);
+  if(!c) return 0;
+  const lx = wx - cx*CHUNK_SIZE, lz = wz - cz*CHUNK_SIZE;
+  return c.data[chunkIdx(lx,wy,lz)];
+}
+
+function overworldSetBlock(wx,wy,wz,v){
+  if(wy<0||wy>=WORLD_HEIGHT) return;
+  const cx = Math.floor(wx/CHUNK_SIZE), cz = Math.floor(wz/CHUNK_SIZE);
+  const c = getChunk(cx,cz);
+  if(!c) return;
+  const lx = wx - cx*CHUNK_SIZE, lz = wz - cz*CHUNK_SIZE;
+  c.data[chunkIdx(lx,wy,lz)] = v;
+  rebuildChunkMesh(cx,cz);
+  if(lx===0) rebuildChunkMesh(cx-1,cz);
+  if(lx===CHUNK_SIZE-1) rebuildChunkMesh(cx+1,cz);
+  if(lz===0) rebuildChunkMesh(cx,cz-1);
+  if(lz===CHUNK_SIZE-1) rebuildChunkMesh(cx,cz+1);
+}
+
+function buildChunkMeshData(cx,cz){
+  const pos=[],norm=[],uv=[], wpos=[],wnorm=[],wuv=[];
+  const c = getChunk(cx,cz);
+  if(!c) return {pos,norm,uv,wpos,wnorm,wuv};
+  for(let lx=0;lx<CHUNK_SIZE;lx++)
+  for(let ly=0;ly<WORLD_HEIGHT;ly++)
+  for(let lz=0;lz<CHUNK_SIZE;lz++){
+    const b = c.data[chunkIdx(lx,ly,lz)];
+    if(b===0) continue;
+    const wx = cx*CHUNK_SIZE+lx, wz = cz*CHUNK_SIZE+lz;
+    const liquid = (b===WATER);
+    const P = liquid?wpos:pos, N = liquid?wnorm:norm, U = liquid?wuv:uv;
+    for(const face of FACES){
+      const nx = lx+face.dir[0], ny = ly+face.dir[1], nz = lz+face.dir[2];
+      let neighbor;
+      if(ny<0||ny>=WORLD_HEIGHT) neighbor = 0;
+      else if(nx<0||nx>=CHUNK_SIZE||nz<0||nz>=CHUNK_SIZE){
+        neighbor = overworldGetBlock(wx+face.dir[0], ny, wz+face.dir[2]);
+      } else {
+        neighbor = c.data[chunkIdx(nx,ny,nz)];
+      }
+      if(!faceVisible(b, neighbor)) continue;
+      addFace(P,N,U, lx,ly,lz, face, tileFor(b, face.faceOf));
+    }
+  }
+  return {pos,norm,uv,wpos,wnorm,wuv};
+}
+
+function rebuildChunkMesh(cx,cz){
+  const c = getChunk(cx,cz);
+  if(!c) return;
+  while(c.group.children.length){
+    const m = c.group.children[0];
+    c.group.remove(m);
+    m.geometry.dispose();
+  }
+  const {pos,norm,uv,wpos,wnorm,wuv} = buildChunkMeshData(cx,cz);
+  if(pos.length) c.group.add(meshFromArrays(pos,norm,uv,opaqueMat));
+  if(wpos.length) c.group.add(meshFromArrays(wpos,wnorm,wuv,waterMat));
+}
+
+// Render distance settings (measured in chunks; 1 chunk = 16 blocks)
+const RENDER_DISTANCES = [
+  { label:'Near',    r:5  },
+  { label:'Normal',  r:8  },
+  { label:'Far',     r:12 },
+  { label:'Extreme', r:18 },
+];
+let renderDistIndex = 1;
+function currentRD(){ return RENDER_DISTANCES[renderDistIndex].r; }
+
+let loadQueue = [];
+let lastPlayerChunk = { cx:null, cz:null };
+
+function recomputeChunkTargets(){
+  const pcx = Math.floor(player.x/CHUNK_SIZE), pcz = Math.floor(player.z/CHUNK_SIZE);
+  lastPlayerChunk.cx = pcx; lastPlayerChunk.cz = pcz;
+  const R = currentRD();
+  const needed = [];
+  for(let dx=-R; dx<=R; dx++){
+    for(let dz=-R; dz<=R; dz++){
+      const d2 = dx*dx+dz*dz;
+      if(d2 <= R*R){
+        const cx = pcx+dx, cz = pcz+dz;
+        if(!chunks.has(chunkKey(cx,cz))) loadQueue.push({cx,cz,d:d2});
+      }
+    }
+  }
+  loadQueue.sort((a,b)=>a.d-b.d);
+  const unloadDist = R+2;
+  for(const key of Array.from(chunks.keys())){
+    const parts = key.split(',');
+    const cx = parseInt(parts[0],10), cz = parseInt(parts[1],10);
+    const d2 = (cx-pcx)*(cx-pcx)+(cz-pcz)*(cz-pcz);
+    if(d2 > unloadDist*unloadDist) disposeChunk(cx,cz);
+  }
+}
+
+function updateChunkStreaming(){
+  if(currentDim !== 'overworld' || !worldInitialized) return;
+  const pcx = Math.floor(player.x/CHUNK_SIZE), pcz = Math.floor(player.z/CHUNK_SIZE);
+  if(pcx !== lastPlayerChunk.cx || pcz !== lastPlayerChunk.cz){
+    recomputeChunkTargets();
+  }
+  let budget = controlMode==='mobile' ? 1 : 3;
+  while(budget>0 && loadQueue.length){
+    const item = loadQueue.shift();
+    if(chunks.has(chunkKey(item.cx,item.cz))) continue;
+    ensureChunk(item.cx, item.cz);
+    rebuildChunkMesh(item.cx, item.cz);
+    const neigh = [[item.cx-1,item.cz],[item.cx+1,item.cz],[item.cx,item.cz-1],[item.cx,item.cz+1]];
+    for(const [ncx,ncz] of neigh){
+      if(chunks.has(chunkKey(ncx,ncz))) rebuildChunkMesh(ncx,ncz);
+    }
+    budget--;
+  }
+  const stat = document.getElementById('chunkstat');
+  if(stat) stat.textContent = 'Chunks loaded: ' + chunks.size + (loadQueue.length ? (' (streaming ' + loadQueue.length + ')') : '');
+}
+
+function findSpawnYOverworld(x,z){
+  for(let y=WORLD_HEIGHT-1;y>=1;y--){
+    const b = overworldGetBlock(x,y,z);
+    if(b!==0 && b!==WATER) return y;
+  }
+  return WORLD_HEIGHT-1;
+}
+
+// ===================================================================
+// Nether / End: fixed-size bounded dimensions (unchanged design)
+// ===================================================================
+function placeTreeBounded(grid,x,y0,z){
+  const height = 4;
+  for(let dy=0; dy<height; dy++) setSafe(grid,x,y0+dy,z,WOOD,BOUNDED_SIZE,WORLD_HEIGHT);
+  for(let dx=-2;dx<=2;dx++)
+  for(let dz=-2;dz<=2;dz++)
+  for(let dy=height-2;dy<=height+1;dy++){
+    if(Math.abs(dx)+Math.abs(dz)+Math.abs(dy-height)<=3){
+      const bx=x+dx, by=y0+dy, bz=z+dz;
+      if(getSafe(grid,bx,by,bz,BOUNDED_SIZE,WORLD_HEIGHT)===0) setSafe(grid,bx,by,bz,LEAVES,BOUNDED_SIZE,WORLD_HEIGHT);
+    }
+  }
+}
+
+function generateNether(){
+  const grid = new Uint8Array(BOUNDED_SIZE*BOUNDED_SIZE*WORLD_HEIGHT);
+  const floorBase = 8, ceilBase = WORLD_HEIGHT-8;
+  for(let x=0;x<BOUNDED_SIZE;x++){
+    for(let z=0;z<BOUNDED_SIZE;z++){
+      const floorN = Math.round(noise2(x*0.06+3000,z*0.06+3000)*4);
+      const ceilN = Math.round(noise2(x*0.06+4000,z*0.06+4000)*4);
+      const floorY = floorBase+floorN;
+      const ceilY = ceilBase+ceilN;
+      for(let y=0;y<WORLD_HEIGHT;y++){
+        let block = AIR;
+        if(y===0) block = BEDROCK;
+        else if(y<=floorY || y>=ceilY) block = NETHERRACK;
+        grid[x + z*BOUNDED_SIZE + y*BOUNDED_SIZE*BOUNDED_SIZE] = block;
+      }
+    }
+  }
+  const sy = findSpawnYBounded(grid, Math.floor(BOUNDED_SIZE/2), Math.floor(BOUNDED_SIZE/2));
+  return { grid, spawn:{x:BOUNDED_SIZE/2, y:Math.max(sy+1,floorBase+2), z:BOUNDED_SIZE/2}, sky:0x220505, fog:0x3a0e0e };
+}
+
+function generateEnd(){
+  const grid = new Uint8Array(BOUNDED_SIZE*BOUNDED_SIZE*WORLD_HEIGHT);
+  const cx = BOUNDED_SIZE/2, cz = BOUNDED_SIZE/2, baseY = 30;
+  for(let x=0;x<BOUNDED_SIZE;x++){
+    for(let z=0;z<BOUNDED_SIZE;z++){
+      const d = Math.hypot(x-cx, z-cz);
+      if(d < 18){
+        for(let y=baseY-3;y<=baseY;y++) setSafe(grid,x,y,z,ENDSTONE,BOUNDED_SIZE,WORLD_HEIGHT);
+      }
+    }
+  }
+  const sy = findSpawnYBounded(grid, Math.floor(cx), Math.floor(cz));
+  return { grid, spawn:{x:cx, y:sy+1, z:cz}, sky:0x0a0612, fog:0x140a1f };
+}
+
+function findSpawnYBounded(grid,x,z){
+  for(let y=WORLD_HEIGHT-1;y>=1;y--){
+    const b = grid[x + z*BOUNDED_SIZE + y*BOUNDED_SIZE*BOUNDED_SIZE];
+    if(b!==0 && b!==6) return y;
+  }
+  return WORLD_HEIGHT-1;
+}
+
+function buildMeshDataBounded(grid){
+  const pos=[], norm=[], uv=[];
+  const wpos=[], wnorm=[], wuv=[];
+  for(let x=0;x<BOUNDED_SIZE;x++){
+    for(let y=0;y<WORLD_HEIGHT;y++){
+      for(let z=0;z<BOUNDED_SIZE;z++){
+        const b = grid[x + z*BOUNDED_SIZE + y*BOUNDED_SIZE*BOUNDED_SIZE];
+        if(b===0) continue;
+        const liquid = (b===WATER);
+        const P = liquid?wpos:pos, N = liquid?wnorm:norm, U = liquid?wuv:uv;
+        for(const face of FACES){
+          const neighbor = getSafe(grid, x+face.dir[0], y+face.dir[1], z+face.dir[2], BOUNDED_SIZE, WORLD_HEIGHT);
+          if(!faceVisible(b, neighbor)) continue;
+          addFace(P,N,U, x,y,z, face, tileFor(b, face.faceOf));
+        }
+      }
+    }
+  }
+  return {pos,norm,uv,wpos,wnorm,wuv};
+}
+
+// --- Dimensions Management ---
+const DIM_GENERATORS = { nether: generateNether, end: generateEnd };
+const dims = {};
+let currentDim = 'overworld';
+let overworldSpawn = { x: 8, y: WORLD_HEIGHT, z: 8 };
+
+function initBoundedDimension(name){
+  if(dims[name] && dims[name].initialized) return;
+  const data = DIM_GENERATORS[name]();
+  const group = new THREE.Group();
+  rebuildMeshForBounded(data.grid, group);
+  scene.add(group);
+  group.visible = false;
+  dims[name] = { grid:data.grid, group, spawn:data.spawn, sky:data.sky, fog:data.fog, initialized:true };
+}
+
+function rebuildMeshForBounded(grid, group){
+  while(group.children.length){ const m = group.children[0]; group.remove(m); m.geometry.dispose(); }
+  const {pos,norm,uv,wpos,wnorm,wuv} = buildMeshDataBounded(grid);
+  if(pos.length) group.add(meshFromArrays(pos,norm,uv,opaqueMat));
+  if(wpos.length) group.add(meshFromArrays(wpos,wnorm,wuv,waterMat));
+}
+
+function switchDimension(name){
+  if(!worldInitialized) return;
+  if((name==='nether'||name==='end') && (!dims[name] || !dims[name].initialized)){ initBoundedDimension(name); }
+  if(name === currentDim) return;
+  if(currentDim === 'overworld'){
+    for(const c of chunks.values()) c.group.visible = false;
+  } else {
+    dims[currentDim].group.visible = false;
+  }
+  currentDim = name;
+  if(currentDim === 'overworld'){
+    for(const c of chunks.values()) c.group.visible = true;
+    recomputeChunkTargets();
+    player.x = overworldSpawn.x; player.y = overworldSpawn.y+0.1; player.z = overworldSpawn.z;
+    scene.fog.color.setHex(0x9fd3f0);
+    scene.fog.near = 40; scene.fog.far = 40 + currentRD()*CHUNK_SIZE;
+  } else {
+    const d = dims[currentDim];
+    d.group.visible = true;
+    player.x = d.spawn.x; player.y = d.spawn.y+0.1; player.z = d.spawn.z;
+    scene.fog.color.setHex(d.fog);
+    scene.fog.near = 20; scene.fog.far = 90;
+  }
+  velY = 0;
+  document.querySelectorAll('.dimbtn').forEach(b=> b.classList.toggle('active', b.dataset.dim===name));
+}
+
+// --- Unified World Access (dispatches to overworld chunks or bounded grids) ---
+function worldGetBlock(x,y,z){
+  if(currentDim==='overworld') return overworldGetBlock(x,y,z);
+  return getSafe(dims[currentDim].grid, x,y,z, BOUNDED_SIZE, WORLD_HEIGHT);
+}
+function worldSetBlock(x,y,z,v){
+  if(currentDim==='overworld'){ overworldSetBlock(x,y,z,v); return; }
+  setSafe(dims[currentDim].grid, x,y,z, v, BOUNDED_SIZE, WORLD_HEIGHT);
+  rebuildMeshForBounded(dims[currentDim].grid, dims[currentDim].group);
+}
+
+// --- Player State & Controls ---
+const player = { x: 8, y: WORLD_HEIGHT, z: 8, yaw: 0, pitch: 0 };
+let velY = 0, onGround = false, flying = false;
+const keys = {};
+let selectedBlock = HOTBAR_BLOCKS[0];
+let selectedIndex = 0;
+const EYE_HEIGHT = 1.6, PLAYER_HALF = 0.3, PLAYER_HEIGHT = 1.7;
+
+function isSolid(x,y,z){
+  return isSolidCollide(worldGetBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
+}
+
+function collidesAt(){
+  const half = PLAYER_HALF;
+  for(let x=Math.floor(player.x-half); x<=Math.floor(player.x+half); x++)
+  for(let y=Math.floor(player.y); y<=Math.floor(player.y+PLAYER_HEIGHT); y++)
+  for(let z=Math.floor(player.z-half); z<=Math.floor(player.z+half); z++)
+    if(isSolid(x,y,z)) return true;
+  return false;
+}
+
+function moveAxis(axis, delta){
+  if(delta===0) return;
+  player[axis] += delta;
+  if(collidesAt()){
+    player[axis] -= delta;
+    if(axis==='y'){ velY = 0; if(delta<0) onGround = true; }
+  } else if(axis==='y' && delta<0){
+    onGround = false;
+  }
+}
+
+function updatePlayer(dt){
+  const speed = (keys['ShiftLeft']||keys['ShiftRight']) ? 7.2 : 4.5;
+  const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+
+  let mx=0, mz=0;
+  if(keys['KeyW']){ mx += forward.x; mz += forward.z; }
+  if(keys['KeyS']){ mx -= forward.x; mz -= forward.z; }
+  if(keys['KeyA']){ mx -= right.x; mz -= right.z; }
+  if(keys['KeyD']){ mx += right.x; mz += right.z; }
+  const len = Math.hypot(mx,mz);
+  if(len>0){ mx/=len; mz/=len; }
+
+  moveAxis('x', mx*speed*dt);
+  moveAxis('z', mz*speed*dt);
+
+  if(flying){
+    let vy = 0;
+    if(keys['Space']) vy += speed;
+    if(keys['ShiftLeft']||keys['ShiftRight']) vy -= speed;
+    moveAxis('y', vy*dt);
+    velY = 0;
+  } else {
+    velY -= 22*dt;
+    if(velY < -30) velY = -30;
+    if(keys['Space'] && onGround){ velY = 8; onGround=false; }
+    moveAxis('y', velY*dt);
+  }
+
+  if(player.y < -8){
+    if(currentDim==='overworld'){
+      player.x = overworldSpawn.x; player.y = overworldSpawn.y+1; player.z = overworldSpawn.z;
+    } else {
+      const sp = dims[currentDim].spawn;
+      player.x = sp.x; player.y = sp.y+1; player.z = sp.z;
+    }
+    velY = 0;
+  }
+
+  camera.position.set(player.x, player.y+EYE_HEIGHT, player.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = player.yaw;
+  camera.rotation.x = player.pitch;
+}
+
+// Mouse controls
+let pointerLocked = false;
+let dragging = false;
+let lastDragX = 0, lastDragY = 0;
+const sensitivity = 0.0022, dragSensitivity = 0.0035;
+
+document.addEventListener('mousemove', (e)=>{
+  if(pointerLocked){
+    player.yaw -= e.movementX*sensitivity;
+    player.pitch -= e.movementY*sensitivity;
+  } else if(dragging){
+    player.yaw -= (e.clientX-lastDragX)*dragSensitivity;
+    player.pitch -= (e.clientY-lastDragY)*dragSensitivity;
+    lastDragX = e.clientX; lastDragY = e.clientY;
+  } else { return; }
+  player.pitch = Math.max(-Math.PI/2+0.02, Math.min(Math.PI/2-0.02, player.pitch));
+});
+
+renderer.domElement.addEventListener('mousedown', e=>{
+  if(!pointerLocked && e.button===0){ dragging = true; lastDragX = e.clientX; lastDragY = e.clientY; }
+});
+window.addEventListener('mouseup', ()=> dragging = false);
+
+document.addEventListener('keydown', e=>{
+  if(inventoryOpen && e.code!=='KeyI' && e.code!=='KeyB'){ e.preventDefault(); return; }
+  keys[e.code] = true;
+  if(e.code === 'KeyF'){ flying = !flying; velY = 0; }
+  if(e.code === 'KeyI' || e.code === 'KeyB'){ e.preventDefault(); inventoryOpen ? closeInventory() : openInventory(); return; }
+  if(e.code === 'KeyE'){ breakBlock(); }
+  if(e.code === 'KeyQ'){ placeBlock(); }
+  const num = parseInt(e.key);
+  if(num >= 1 && num <= 9 && HOTBAR_BLOCKS[num-1]!==undefined){
+    selectedIndex = num-1; selectedBlock = HOTBAR_BLOCKS[selectedIndex];
+    updateHotbarUI(); updateInventoryUI();
+  }
+});
+document.addEventListener('keyup', e=> keys[e.code] = false);
+
+// --- Raycasting for Action ---
+function voxelRaycast(maxDist){
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const origin = camera.position.clone();
+  let prevX = Math.floor(origin.x), prevY = Math.floor(origin.y), prevZ = Math.floor(origin.z);
+  for(let t=0; t<maxDist; t+=0.04){
+    const px = origin.x + dir.x*t, py = origin.y + dir.y*t, pz = origin.z + dir.z*t;
+    const bx = Math.floor(px), by = Math.floor(py), bz = Math.floor(pz);
+    const b = worldGetBlock(bx,by,bz);
+    if(b !== 0 && b !== WATER){
+      return { hit:true, x:bx,y:by,z:bz, px:prevX,py:prevY,pz:prevZ };
+    }
+    prevX=bx; prevY=by; prevZ=bz;
+  }
+  return { hit:false };
+}
+
+function breakBlock(){
+  const r = voxelRaycast(6);
+  if(!r.hit) return;
+  const broken=worldGetBlock(r.x,r.y,r.z);
+  if(broken === BEDROCK) return;
+  worldSetBlock(r.x,r.y,r.z, 0);
+
+  // Survival drops: what you mine is what you receive.
+  // A few classic block drops are handled specially.
+  if(broken===LEAVES){
+    if(Math.random()<0.12) addItem(112,1); // sapling
+    else addItem(LEAVES,1);
+  } else if(broken===GRASS){
+    addItem(GRASS,1);
+  } else if(broken===STONE){
+    addItem(STONE,1);
+  } else if(broken===WOOD){
+    addItem(WOOD,1);
+    addItem(113,1); // small stick bonus
+  } else if(ITEM_NAME[broken]) {
+    addItem(broken,1);
+  } else {
+    addItem(STONE,1);
+  }
+  blocksMined++;
+  addXP(1);
+  refreshHotbar();
+}
+
+function placeBlock(){
+  const r = voxelRaycast(6);
+  if(!r.hit) return;
+
+  // Right-clicking a crafting table opens its crafting screen instead of placing.
+  if(r.x!==undefined){
+    const target=worldGetBlock(r.x,r.y,r.z);
+    if(target===140){ openCrafting(3); return; }
+    if(target===141){ openCrafting(2); return; }
+  }
+
+  if(!ITEM_PLACEABLE.has(selectedBlock)){ showToast('Select a block first'); return; }
+  if(!removeItem(selectedBlock,1)) { showToast('No '+(ITEM_NAME[selectedBlock]||'block')+' left'); return; }
+
+  // Use the last air voxel immediately before the hit. This works on floors,
+  // ceilings, walls and the sides of blocks instead of requiring a special angle.
+  const tx=r.px, ty=r.py, tz=r.pz;
+  if(worldGetBlock(tx,ty,tz)!==0){
+    addItem(selectedBlock,1); // refund if the target is occupied
+    return;
+  }
+  // Don't place a block inside the player's body.
+  const bx=tx+0.5, by=ty+0.5, bz=tz+0.5;
+  if(Math.abs(bx-player.x)<0.8 && Math.abs(bz-player.z)<0.8 && Math.abs(by-(player.y+0.2))<1.4){
+    addItem(selectedBlock,1); showToast('Too close to player'); return;
+  }
+  worldSetBlock(tx,ty,tz,selectedBlock);
+  refreshHotbar();
+}
+
+function refreshHotbar(){
+  // Only show things the player actually owns. Newly mined/crafted blocks appear automatically.
+  const old=selectedBlock;
+  const owned=ITEM_DEFS.map(x=>x[0]).filter(id=>ITEM_PLACEABLE.has(id) && (inventory[id]||0)>0);
+  HOTBAR_BLOCKS=owned.slice(0,HOTBAR_MAX);
+  if(HOTBAR_BLOCKS.length===0){ selectedIndex=0; selectedBlock=0; }
+  else if(!HOTBAR_BLOCKS.includes(old)){ selectedIndex=0; selectedBlock=HOTBAR_BLOCKS[0]; }
+  else selectedIndex=HOTBAR_BLOCKS.indexOf(old);
+  buildHotbarUI();
+}
+
+// ---- Crafting ----
+const RECIPES=[
+  {name:'Crafting Table',out:140,count:1,need:[[WOOD,4]] ,grid:2},
+  {name:'Stick',out:113,count:4,need:[[WOOD,2]],grid:2},
+  {name:'Chest',out:139,count:1,need:[[WOOD,8]],grid:3},
+  {name:'Furnace',out:141,count:1,need:[[STONE,8]],grid:3},
+  {name:'Torch',out:138,count:4,need:[[113,1],[104,1]],grid:2},
+  {name:'Glass',out:142,count:1,need:[[SAND,1]],grid:2},
+  {name:'Brick',out:143,count:1,need:[[103,4]],grid:2},
+  {name:'Iron Sword',out:155,count:1,need:[[144,2],[113,1]],grid:3},
+  {name:'Diamond Sword',out:156,count:1,need:[[146,2],[113,1]],grid:3},
+  {name:'Iron Pickaxe',out:157,count:1,need:[[144,3],[113,2]],grid:3},
+  {name:'Diamond Pickaxe',out:158,count:1,need:[[146,3],[113,2]],grid:3}
+];
+function canCraft(recipe){ return recipe.need.every(([id,n])=>(inventory[id]||0)>=n); }
+function craft(recipe){
+  if(!canCraft(recipe)){showToast('Missing materials');return;}
+  recipe.need.forEach(([id,n])=>removeItem(id,n));
+  addItem(recipe.out,recipe.count);
+  refreshHotbar(); updateCraftingUI();
+}
+function openCrafting(size=3){
+  const p=document.getElementById('craftingPanel'); if(!p)return;
+  p.dataset.size=size; p.classList.add('open'); updateCraftingUI();
+  if(pointerLocked)try{document.exitPointerLock()}catch(e){}
+}
+function closeCrafting(){document.getElementById('craftingPanel')?.classList.remove('open');}
+function updateCraftingUI(){
+  const p=document.getElementById('craftingPanel'); if(!p||!p.classList.contains('open'))return;
+  const size=Number(p.dataset.size||3); document.getElementById('craftTitle').textContent=size===3?'Crafting Table':'Furnace';
+  const g=document.getElementById('recipeGrid'); g.innerHTML='';
+  RECIPES.filter(r=>r.grid<=size).forEach(r=>{
+    const b=document.createElement('button'); b.className='recipe'; b.disabled=!canCraft(r);
+    b.innerHTML='<span class="recipeIcon" style="background:url('+makeItemTexture(r.out)+') center/100% 100%"></span><span>'+r.name+' ×'+r.count+'</span>';
+    b.title=r.need.map(([id,n])=>(n+'× '+ITEM_NAME[id])).join(', '); b.onclick=()=>craft(r); g.appendChild(b);
+  });
+}
+
+renderer.domElement.addEventListener('mousedown', e=>{
+  if(!pointerLocked) return;
+  if(e.button===0) breakBlock();
+  else if(e.button===2) placeBlock();
+});
+renderer.domElement.addEventListener('contextmenu', e=> e.preventDefault());
+
+// --- UI Management ---
+function buildHotbarUI(){
+  const bar=document.getElementById('hotbar'); bar.innerHTML='';
+  HOTBAR_BLOCKS.forEach((b,i)=>{
+    const slot=document.createElement('div'); slot.className='slot'+(i===selectedIndex?' sel':'');
+    slot.innerHTML='<div class="num">'+(i+1)+'</div>';
+    const icon=document.createElement('div'); icon.className='swatch'; icon.style.background='url('+makeItemTexture(b)+') center/100% 100% no-repeat'; slot.appendChild(icon);
+    const count=document.createElement('div'); count.className='count'; count.style.cssText='position:absolute;right:4px;bottom:3px;font-weight:700;font-size:12px;text-shadow:0 1px 2px #000;'; count.textContent=inventory[b]||0; slot.appendChild(count);
+    slot.title=ITEM_NAME[b]||'Item';
+    slot.addEventListener('click',()=>{selectedIndex=i;selectedBlock=b;updateHotbarUI();updateInventoryUI();}); bar.appendChild(slot);
+  });
+  updateEquippedUI();
+}
+function updateEquippedUI(){
+  const id=selectedBlock; const icon=document.getElementById('equippedIcon'); const name=document.getElementById('equippedName'); const count=document.getElementById('equippedCount');
+  if(!icon||!name||!count) return;
+  icon.style.background='url('+makeItemTexture(id)+') center/100% 100% no-repeat'; name.textContent=ITEM_NAME[id]||'Item'; count.textContent=(inventory[id]||0)+' in inventory';
+}
+function updateHotbarUI(){
+  document.querySelectorAll('.slot').forEach((slot,i)=>{
+    slot.classList.toggle('sel',i===selectedIndex); const b=HOTBAR_BLOCKS[i]; const c=slot.querySelector('.count'); if(c)c.textContent=inventory[b]||0;
+  }); updateEquippedUI();
+}
+
+for(const [id] of ITEM_DEFS) makeItemTexture(id);
+buildHotbarUI();
+document.getElementById('invClose').addEventListener('click', closeInventory);
+document.getElementById('craftClose').addEventListener('click', closeCrafting);
+document.getElementById('invCraft').addEventListener('click', ()=>openCrafting(2));
+updateInventoryUI();
+
+document.querySelectorAll('.dimbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchDimension(btn.dataset.dim));
+});
+
+// Performance Mode Toggle
+let performanceMode = false;
+const perfBtn = document.getElementById('perfbtn');
+perfBtn.addEventListener('click', ()=>{
+  performanceMode = !performanceMode;
+  perfBtn.classList.toggle('active', performanceMode);
+  perfBtn.textContent = performanceMode ? 'Performance: On' : 'Performance: Off';
+  renderer.setPixelRatio(performanceMode ? 0.5 : Math.min(window.devicePixelRatio, 2));
+});
+
+// Render Distance Cycle Button (like Minecraft's video settings)
+const distBtn = document.getElementById('distbtn');
+distBtn.addEventListener('click', ()=>{
+  renderDistIndex = (renderDistIndex + 1) % RENDER_DISTANCES.length;
+  const rd = RENDER_DISTANCES[renderDistIndex];
+  distBtn.textContent = 'Render Distance: ' + rd.label;
+  if(currentDim==='overworld'){
+    scene.fog.far = 40 + rd.r*CHUNK_SIZE;
+    lastPlayerChunk.cx = null; lastPlayerChunk.cz = null; // force recompute
+  }
+});
+
+const overlay = document.getElementById('overlay');
+const startbtn = document.getElementById('startbtn');
+const pausehint = document.getElementById('pausehint');
+const computerBtn = document.getElementById('computerBtn');
+const mobileBtn = document.getElementById('mobileBtn');
+const mobileControls = document.getElementById('mobileControls');
+let controlMode = null;
+let engineReady = false;
+let worldInitialized = false;
+
+function chooseControlMode(mode){
+  controlMode = mode;
+  computerBtn.classList.toggle('selected', mode==='computer');
+  mobileBtn.classList.toggle('selected', mode==='mobile');
+  startbtn.disabled = !engineReady;
+  startbtn.textContent = engineReady ? (mode==='mobile' ? 'Play on Mobile' : 'Click to Play') : 'Loading world...';
+  document.getElementById('deviceQuestion').textContent = mode==='mobile' ? 'Mobile controls selected' : 'Computer keyboard + mouse selected';
+}
+computerBtn.addEventListener('click', ()=>chooseControlMode('computer'));
+mobileBtn.addEventListener('click', ()=>chooseControlMode('mobile'));
+
+startbtn.addEventListener('click', ()=>{
+  if(!controlMode || !engineReady) return;
+  if(!worldInitialized) initializeWorld(controlMode);
+  overlay.style.display = 'none';
+  if(controlMode==='mobile'){
+    mobileControls.classList.add('active');
+    pausehint.style.display = 'none';
+  } else {
+    mobileControls.classList.remove('active');
+    try { renderer.domElement.requestPointerLock(); } catch(err){}
+  }
+});
+
+// Mobile controls: virtual joystick, touch look, jump/action buttons.
+let joyId=null, lookId=null, joyX=0, joyY=0, lookX=0, lookY=0;
+function setVirtualKey(code,on){ keys[code]=on; }
+function updateJoy(t){
+  const r=document.getElementById('joystick').getBoundingClientRect();
+  let dx=t.clientX-(r.left+r.width/2), dy=t.clientY-(r.top+r.height/2);
+  const max=39, len=Math.hypot(dx,dy); if(len>max){dx=dx/len*max;dy=dy/len*max;}
+  document.getElementById('stick').style.transform=`translate(${dx}px,${dy}px)`;
+  setVirtualKey('KeyW',dy < -12); setVirtualKey('KeyS',dy > 12);
+  setVirtualKey('KeyA',dx < -12); setVirtualKey('KeyD',dx > 12);
+}
+const joystick=document.getElementById('joystick');
+joystick.addEventListener('touchstart',e=>{if(joyId===null){joyId=e.changedTouches[0].identifier;updateJoy(e.changedTouches[0]);}e.preventDefault();},{passive:false});
+joystick.addEventListener('touchmove',e=>{for(const t of e.changedTouches)if(t.identifier===joyId)updateJoy(t);e.preventDefault();},{passive:false});
+function endJoy(e){for(const t of e.changedTouches)if(t.identifier===joyId){joyId=null;joyX=joyY=0;document.getElementById('stick').style.transform='translate(0,0)';['KeyW','KeyA','KeyS','KeyD'].forEach(k=>setVirtualKey(k,false));}e.preventDefault();}
+joystick.addEventListener('touchend',endJoy,{passive:false}); joystick.addEventListener('touchcancel',endJoy,{passive:false});
+
+renderer.domElement.addEventListener('touchstart',e=>{
+  if(controlMode!=='mobile' || lookId!==null) return;
+  const t=e.changedTouches[0]; lookId=t.identifier; lookX=t.clientX; lookY=t.clientY; e.preventDefault();
+},{passive:false});
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(controlMode!=='mobile') return;
+  for(const t of e.changedTouches) if(t.identifier===lookId){
+    player.yaw-=(t.clientX-lookX)*dragSensitivity*1.8; player.pitch-=(t.clientY-lookY)*dragSensitivity*1.8;
+    player.pitch=Math.max(-Math.PI/2+0.02,Math.min(Math.PI/2-0.02,player.pitch)); lookX=t.clientX; lookY=t.clientY;
+  } e.preventDefault();
+},{passive:false});
+function endLook(e){for(const t of e.changedTouches)if(t.identifier===lookId)lookId=null;}
+renderer.domElement.addEventListener('touchend',endLook,{passive:false}); renderer.domElement.addEventListener('touchcancel',endLook,{passive:false});
+function mobileButton(id,down,up){const b=document.getElementById(id);b.addEventListener('touchstart',e=>{e.preventDefault();down();},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();up&&up();},{passive:false});b.addEventListener('touchcancel',e=>{e.preventDefault();up&&up();},{passive:false});}
+mobileButton('mJump',()=>setVirtualKey('Space',true),()=>setVirtualKey('Space',false));
+mobileButton('mSprint',()=>setVirtualKey('ShiftLeft',true),()=>setVirtualKey('ShiftLeft',false));
+mobileButton('mBreak',()=>breakBlock());
+mobileButton('mPlace',()=>placeBlock());
+mobileButton('mInv',()=>inventoryOpen?closeInventory():openInventory());
+mobileButton('mFly',()=>{flying=!flying;velY=0;});
+
+document.addEventListener('pointerlockchange', ()=>{
+  pointerLocked = (document.pointerLockElement === renderer.domElement);
+  pausehint.style.display = (controlMode==='computer' && pointerLocked) ? 'block' : 'none';
+});
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Initialization ---
+const loadingEl = document.getElementById('loading');
+loadingEl.textContent = 'Initializing engine...';
+
+loadInventory();
+refreshHotbar();
+let atlasReady = false;
+loadAtlas((tex)=>{
+  opaqueMat.map = tex; opaqueMat.needsUpdate = true;
+  waterMat.map = tex; waterMat.needsUpdate = true;
+  atlasReady = true;
+  engineReady = true;
+  loadingEl.textContent = controlMode ? '' : 'Choose Computer or Mobile';
+  startbtn.disabled = !controlMode;
+  startbtn.textContent = controlMode ? (controlMode==='mobile' ? 'Play on Mobile' : 'Click to Play') : 'Choose a device';
+});
+
+function initializeWorld(mode){
+  if(worldInitialized || !atlasReady) return;
+  worldInitialized = true;
+
+  // Mobile devices get a much smaller first-load workload. The old version
+  // generated and meshed 40 chunks plus two complete bounded dimensions before
+  // the player could even press Play, which can lock up phones/tablets.
+  const mobile = mode==='mobile';
+  if(mobile){
+    performanceMode = true;
+    renderDistIndex = 0; // Near: 5 chunks
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,0.8));
+    scene.fog.far = 40 + currentRD()*CHUNK_SIZE;
+    perfBtn.classList.add('active');
+    perfBtn.textContent = 'Performance: On';
+    distBtn.textContent = 'Render Distance: Near';
+  }
+
+  ensureChunk(0,0);
+  rebuildChunkMesh(0,0);
+  const sy = findSpawnYOverworld(8,8);
+  overworldSpawn = { x:8, y:sy+1, z:8 };
+  player.x = overworldSpawn.x; player.y = overworldSpawn.y+1; player.z = overworldSpawn.z;
+  recomputeChunkTargets();
+
+  // Only front-load a few chunks on mobile. Remaining chunks stream in from
+  // the normal frame-budgeted streaming loop after gameplay starts.
+  const initialChunks = mobile ? 4 : 12;
+  for(let i=0;i<initialChunks && loadQueue.length;i++){
+    const item = loadQueue.shift();
+    if(!chunks.has(chunkKey(item.cx,item.cz))){
+      ensureChunk(item.cx,item.cz);
+      rebuildChunkMesh(item.cx,item.cz);
+    }
+  }
+
+  // Nether and End are initialized lazily when the player actually selects
+  // those dimensions, avoiding a large startup spike on mobile.
+  if(!mobile){
+    initBoundedDimension('nether');
+    initBoundedDimension('end');
+  }
+  loadingEl.textContent = '';
+}
+
+// --- Main Loop ---
+const clock = new THREE.Clock();
+let dayTime = 0.3;
+
+function updateAtmosphere(dt){
+  if(currentDim !== 'overworld') return;
+  dayTime += dt*0.02;
+  const brightness = Math.max(0.1, Math.sin(dayTime));
+  hemi.intensity = 0.2 + brightness*0.8;
+  sun.intensity = brightness*1.2;
+  const skyColor = new THREE.Color().setHSL(0.58, 0.6, 0.2 + brightness*0.5);
+  scene.background = skyColor;
+  scene.fog.color.copy(skyColor);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if(overlay.style.display === 'none'){
+    updatePlayer(dt);
+  } else {
+    camera.position.set(player.x, player.y+EYE_HEIGHT, player.z);
+  }
+  updateAtmosphere(dt);
+  updateChunkStreaming();
+
+  const r = voxelRaycast(6);
+  if(r.hit){
+    highlightMesh.visible = true;
+    highlightMesh.position.set(r.x+0.5, r.y+0.5, r.z+0.5);
+  } else {
+    highlightMesh.visible = false;
+  }
+
+  renderer.render(scene, camera);
+}
+window.addEventListener('beforeunload', saveInventory);
+requestAnimationFrame(animate);
+
+})();
+</script>
+</body>
+</html>
